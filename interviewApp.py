@@ -43,8 +43,11 @@ uploadedFile = st.file_uploader("Upload PDF", type=["pdf"], key="pdf")
 
 # Prompts
 inputPromptInterview = """
-You are a technical interviewer specializing in [candidate's job role]. Based on the resume and job description provided, generate a list of specific, technical questions
-relevant to the candidate's field of expertise. Avoid general HR questions; focus solely on technical skills, problem-solving capabilities, and relevant tools or technologies.
+You are a technical interviewer specializing in [candidate's job role]. Based on the resume and job description provided, generate a list of specific, technical questions relevant to the candidate's field of expertise. 
+If the job description is related to software engineering, include Data Structures and Algorithms (DSA) questions. Otherwise, provide some general aptitude questions. Avoid general HR questions; focus solely on technical skills, problem-solving capabilities, and relevant tools or technologies.
+"""
+inputPromptHR = """
+You are an HR interviewer. Based on the resume and job description provided, generate a list of HR questions relevant to the candidate's profile. These questions should assess the candidate's fit within the company culture, soft skills, teamwork, and career aspirations. Avoid technical questions; focus solely on behavioral and situational aspects.
 """
 
 inputPromptScoring = """
@@ -80,6 +83,11 @@ def generate_interview_questions(input_text, pdf_content):
     questions = [q for q in questions_res.strip().split("\n") if q.strip() and "?" in q][:5]
     return questions
 
+def generate_hr_questions(input_text, pdf_content):
+    hr_questions_res = getGeminiRes(input_text, pdf_content, inputPromptHR)
+    hr_questions = [q for q in hr_questions_res.strip().split("\n") if q.strip() and "?" in q][:5]
+    return hr_questions
+
 # Technical Interview Section
 st.subheader("Technical Interview Section")
 
@@ -110,6 +118,38 @@ if st.button("Generate Technical Questions"):
                 st.write("Answers submitted successfully. You can now score them.")
         else:
             st.write("No valid technical questions generated. Please ensure the resume and job description are relevant.")
+
+# HR Interview Section
+st.subheader("HR Interview Section")
+
+if st.button("Generate HR Questions"):
+    if uploadedFile is not None:
+        pdfContent = inputPdf(uploadedFile)
+        hr_questions = generate_hr_questions(inputText, pdfContent)
+        
+        if hr_questions:
+            # Save HR questions and reset answers in session state
+            st.session_state['hr_questions'] = hr_questions
+            st.session_state['hr_answers'] = [""] * len(hr_questions)  # Reset answers
+            st.write("### HR Questions:")
+
+            # Use st.form to collect answers without rerunning
+            with st.form("hr_answer_form"):
+                for i, question in enumerate(st.session_state['hr_questions'], 1):
+                    st.write(f"**HR Question {i}:** {question}")
+                    # Using form's text_area to prevent reruns
+                    st.session_state['hr_answers'][i-1] = st.text_area(
+                        f"Your HR Answer {i}", 
+                        value=st.session_state['hr_answers'][i-1],
+                        key=f"hr_answer_{i}"
+                    )
+                submit_hr_answers = st.form_submit_button("Submit HR Answers")
+
+            if submit_hr_answers:
+                st.write("HR answers submitted successfully.")
+        else:
+            st.write("No valid HR questions generated. Please ensure the resume and job description are relevant.")
+
 
 # Scoring and Feedback Section
 if st.button("Score Answers"):
